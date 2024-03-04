@@ -1,0 +1,66 @@
+gmacro
+Jim
+Note Simulated the effect of genetic supplementation on the na, ne and He.
+Note The macro is written for the Arabian leopard rescue and runs in Minitab 12.1
+Note The ex-situ data needs to be in c51-c99. The recipient in c1-c49.
+Note
+Note Macro written by: Cock van Oosterhout
+Note Date: 18 Oct 2023
+Note
+
+erase c100-c950
+name c900 'Sim' c901 'Allele' c902 'Count'
+name c204 'Simulation' c205 'na' c206 'ne' c207 'He'
+name c991 'Supplement N' c992 'Simulations' c993 'nas' c994 'nes' c995 'Hes'
+
+Note How many simulations do you want to run (default=1000)? 
+set c999;
+file 'terminal';
+nobs = 1.
+copy c999 k101
+
+Note What is the recipient population size (default N=100)? 
+set c999;
+file 'terminal';
+nobs = 1.
+copy c999 k102
+
+Note What is the number of supplemented individuals (max=25)? 
+set c999;
+file 'terminal';
+nobs = 1.
+copy c999 k103
+
+brief 0
+
+do k1=1:k101
+  sample k102 c3-c18 c103-c118; 
+  replace.
+  if k103=0
+  else
+    Sample k103 c23-c38 c123-c138.
+    stack (c103-c118) (c123-c138) (c103-c118)
+  endif
+  stack c103-c118 c150
+  mlabel 1
+    let k2=min(c150)
+    copy c150 c151;
+    use c150=k2.
+    let k3=N(c151)
+    stack (c900-c902) (k1 k2 k3) (c900-c902)
+    copy c150 c150;
+    omit c150=k2.
+    N(c150) k1000
+    if k1000>0
+  goto 1
+    endif
+  let k4=N(c902)			# na
+  let c903=(c902/sum(c902))**2		# pi^2
+  let k5=1-sum(c903)			# He
+  let k6=1/sum(c903)			# ne
+  stack (c203-c207) (k103 k1 k4 k6 k5) (c203-c207)
+  erase c900-c903
+enddo
+stack (c991-c995) (c203-c207) (c991-c995) 
+brief 1
+endmacro
