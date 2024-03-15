@@ -1,0 +1,24 @@
+This folder contains the SLiM scripts needed to run simulations testing the effect of genetic rescue on the Arabian leopard.
+
+They are compatible for SLiM version 3.
+
+In order to this, the scripts must be run in  order with the final population(s) produced from on script output in the form of .trees file which is uploaded for the subsequent script.
+The order is as follows:
+"Burn_in_1.slim" - produces a N=21000 population ran without mutations to ensure coalescence occurs so that neutral diversity can be measured by overlaying neutral mutations
+"Burn_in_2.slim" - introduced deleterious mutations to build stable genetic load of 6 lethal equivalents
+"Bottleneck_part_1.slim" - linearly decreases the population size from N=21000 to N=1000 over 2000 generations
+"Bottleneck_part_2.slim" - separates an N=64 captive populations from the wild population and linearly decrease the wild population size from N=1000 to N=110
+"Genetic_rescue.slim" - introduces a variable number of individuals from the captive population to the wild population every generations
+
+In addition to loading the population from the previous script it is necessary to load mutations into each script.
+"Burn_in_1.slim" randomly samples mutations from the hs_in.txt and outputs them.
+Subsequent scripts, of the same seed, require this output to be uploaded.
+
+All scripts require the following constants to be defined: "mu" (mutation rate of deleterious mutation, mu=0 for "Burn_in_1.slim", mu=2.4e-8 thereafter) "wg_rho" (within gene recombination rate), "bg_rho" (between gene recombination rate), "g" (number of genes per autosome), "geneLength" (length of each gene), and "autoNo" (number of autosome).
+In addition, "Genetic_rescue.slim", requires "RlsdInds" to be defined which determines the number of captive individuals introduced to the wild population every generation.
+
+The genetic load, realised load, masked load and fitness are output automatically at specified intervals depending on the SLiM script.
+Neutral diversity can be overlain to the populations on the .trees files in order to calculate diversity using pyslim.
+Examples of pyslim scripts that overlay mutations and calculate diversity are given as "Mutation_overlay.py" and "Diversity.py" respectively.
+
+An example of a bash script used to run the simulations in linux OS is also provided as "Bash.sh"

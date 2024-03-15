@@ -1,0 +1,128 @@
+initialize() {
+	initializeSLiMModelType("WF");
+	initializeTreeSeq(simplificationInterval=100,checkCoalescence=T);
+	// initializeTreeSeq(checkCoalescence=T);
+	// define constant is a good way to set up parameters
+	// there are two way to input parameters from the command line. The option below says that when you are in the GUI the values are taken from here, if not the simulation will expect to be define from the command line
+	
+	// the way to run from the command line is 
+	// slim -t -d "parameter=value" slim_script.slim
+	// -t is to time the run
+	if (exists("slimgui"))
+	{
+		defineConstant("bg_rho",0.001); // between gene recombination rate
+		defineConstant("wg_rho",1e-8); // within gene recombination rate
+		defineConstant("mu",0.75e-7); // mutation rate
+		defineConstant("Seed",getSeed()); // gets seed
+		defineConstant("g",1000); // sets number of genes per autosome 
+		defineConstant("geneLength",1500); // sets length of each gene in bps
+		defineConstant("autoNo",9); // sets number of autosomes
+		defineConstant("pathto",FILE_PATH_WHEN_USING_SLiMGUI);
+	}
+	else {
+		defineConstant("pathto",FILE_PATH_WHEN_USING_BASH);
+	}
+	setwd(paste(pathto,LOCATION_OF_FILE:"hs_in.txt", sep = ""));
+	
+
+	// randomly samples mutations from file "hs_in.txt", which contains information of mutations from prviously modelled stable populations
+	del_mut=1000;
+	hs=readFile("hs_in.txt");
+	hs=hs[1:(length(hs)-1)];
+	hs=hs[sample(0:(length(hs)-1),del_mut)];
+	s=sapply(hs,"asFloat(strsplit(applyValue,'\t')[3]);");
+	h=sapply(hs,"asFloat(strsplit(applyValue,'\t')[4]);");
+	hsmod = c();
+	for (i in 0:(size(s)-1)){
+		if (s[i] > 1/(2*K)) {
+			hsmod = c(hsmod,i); }
+	}
+	s = s[hsmod];
+	s=-1*s;
+	h = h[hsmod];
+	prop=rep(1/del_mut,del_mut);
+	prop=prop[hsmod];
+	prop_exons=sapply(prop,"(applyValue);");
+	//prop_exons=prop_exons[hsmod];
+	setwd(paste(pathto,DESTINATION_OF_MUTATIONS_OUTPUT, sep = ""));
+	HEAD="Mut" +"\t"+ "Dom_coeff" +"\t"+ "Sel_coeff";
+	writeFile("Mutations_Seed_"+getSeed()+".txt",HEAD,append=F); //Saves the mutations used by each seed	
+	for (i in 0:(length(prop)-1))
+	{
+		initializeMutationType(i+2, h[i], "f", asFloat(s[i]));
+		print("mut:"+(i+2)+" - " + "h:"+h[i]+" - "+ "s:" + asFloat(s[i]));
+		writeFile("Mutations_Seed_"+getSeed()+".txt",(i+2) +"\t"+ asString(h[i]) +"\t"+ (s[i]),append=T);
+	}
+
+	
+	// distribution of mutation types
+	
+	initializeGenomicElementType("g1", 1:(size(hsmod)), c(prop_exons));  
+	initializeMutationRate(mu);
+	
+	// creates exomes composed of "autoNo" autosomes that have "g" genes of "geneLength" base pairs. Free recombination occurs between autosomes. "bg_rho" is the recombination rate between genes. "wg_rho" is the recombination rate within genes. 
+	
+	initializeGenomicElement(g1, 0, asInteger((geneLength*g*autoNo)-1));
+	
+	rates=NULL;
+	
+	rates = c(rep(c(wg_rho,bg_rho),(g-1)), wg_rho);
+	rates = c(rep(c(rates,0.5),(autoNo-1)),rates);
+	ends=NULL;
+	for (i in 1:(g-1)) {
+		ends = c(ends,((i*geneLength)-1),(i*geneLength));
+	}
+	ends = c(ends,(g*geneLength)-1);
+	nends = ends + (g*geneLength);
+	nends = c(ends[length(ends)-1]+1,nends);
+	for (i in 1:(autoNo-1)) {
+		ends = c(ends,nends);
+		nends = nends + (g*geneLength);
+	}
+	initializeRecombinationRate(rates, asInteger(ends));
+	
+	initializeSex("A");
+}
+
+
+1 {
+	sim.addSubpop("p1", 21000); // creates subpopulation of size 21000
+	sim.mutationTypes.convertToSubstitution=F;  // prevents mutations from being substituted after becoming fixed. 
+	sim.mutationTypes.mutationStackPolicy="l"; // Stack the last mutations occuring at a loci over the previous one. 
+	
+}
+
+
+/// Prints performance update every 1000 generations. 
+1: late() {
+	if(sim.generation == 1 | sim.generation % 1000 ==0){
+		print(date() + "\t" + time() + "\t" + "generation: " + sim.generation + "\t" + "N: " + p1.individualCount+ "  memory usage: "+usage()/1000+"Gb");
+	}
+}
+
+
+// checks coalescence after generation 55000. If coalesced saves population as .trees file if every 10000 generation if coalescence confirmed. 
+550000: late() {
+	if (sim.treeSeqCoalesced())
+	{
+		if (sim.generation == 589999) {
+			setwd(paste(pathto,DESTINATION_OF_OUTPUT_OF_COALESCENCE_CONFIRMATION, sep = ""));
+			writeFile("Coalescence.txt",getSeed()+"\t"+sim.generation+"\t"+"Coalesced",append=T);	
+		}
+		if (sim.generation > 550000 & sim.generation % 10000 == 0){
+			setwd(paste(pathto,DESTINATION_OF_TREES_SEQ_FILES, sep = ""));
+			sim.treeSeqOutput("OpTree_Seed"+getSeed()+"_Gen" + sim.generation +".trees");
+		}
+	}
+	else 
+		if (sim.generation == 589999) {
+			setwd(paste(pathto,DESTINATION_OF_OUTPUT_OF_COALESCENCE_CONFIRMATION, sep = ""));
+			writeFile("Coalescence.txt",getSeed()+"\t"+sim.generation+"\t"+"Not coalesced",append=T);	
+		}
+}
+
+
+590000 late() { sim.simulationFinished(); }
+
+
+
